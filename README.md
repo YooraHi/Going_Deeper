@@ -10,14 +10,102 @@
 **PRT(PeerReviewTemplate)**
 
 ** [ ] 코드가 정상적으로 동작하고 주어진 문제를 해결했나요?   
-|평가문항|상세기준|완료여뷰|
-|-------|--------|-------|
-1. multiface detection을 위한 widerface 데이터셋의 전처리가 적절히 진행되었다.| tfrecord 생성, augmentation, prior box 생성 등의 과정이 정상적으로 진행되었다. | |
-|2. SSD 모델이 안정적으로 학습되어 multiface detection이 가능해졌다. |inference를 통해 정확한 위치의 face bounding box를 detect한 결과이미지가 제출되었다. | |
-|3. 이미지 속 다수의 얼굴에 스티커가 적용되었다. |이미지 속 다수의 얼굴의 적절한 위치에 스티커가 적용된 결과이미지가 제출되었다.| |
+
+| 평가문항                                                     | 상세기준                                                     | 완료여뷰                                             |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ---------------------------------------------------- |
+| 1.multiface detection을 위한 widerface 데이터셋의 전처리가 적절히 진행되었다. | tfrecord 생성, augmentation, prior box 생성 등의 과정이 정상적으로 진행되었다. | 데이터셋의 전처리는 적절히 진행되었습니다            |
+| 2. SSD 모델이 안정적으로 학습되어 multiface detection이 가능해졌다. | inference를 통해 정확한 위치의 face bounding box를 detect한 결과이미지가 제출되었다. | 아쉽게도 결과의 이미지를 제출하지는 못하셨습니다     |
+| 3. 이미지 속 다수의 얼굴에 스티커가 적용되었다.              | 이미지 속 다수의 얼굴의 적절한 위치에 스티커가 적용된 결과이미지가 제출되었다. | 아쉽게도 스티커 적용 이미지는 제출되지 못하였습니다. |
+
 ** [ ] 주석을 보고 작성자의 코드가 이해되었나요?
 
+- 전반적으로 주석이 부족한 부분이 보이긴 했으나 잘 된 부분이 있습니다
 
+  ```python
+  
+  
+  def parse_widerface(config_path):
+      boxes_per_img = []
+      with open(config_path) as fp:
+          line = fp.readline()
+          cnt = 1
+          while line:
+              num_of_obj = int(fp.readline())
+              boxes = []
+              for i in range(num_of_obj):
+                  obj_box = fp.readline().split(' ')
+                  x0, y0, w, h = get_box(obj_box)
+                  if w == 0:
+                      # remove boxes with no width
+                      continue
+                  if h == 0:
+                      # remove boxes with no height
+                      continue
+                  # Because our network is outputting 7x7 grid then it's not worth processing images with more than
+                  # 5 faces because it's highly probable they are close to each other.
+                  # You could remove this filter if you decide to switch to larger grid (like 14x14)
+                  # Don't worry about number of train data because even with this filter we have around 16k samples
+                  boxes.append([x0, y0, w, h])
+              if num_of_obj == 0:
+                  obj_box = fp.readline().split(' ')
+                  x0, y0, w, h = get_box(obj_box)
+                  boxes.append([x0, y0, w, h])
+              boxes_per_img.append((line.strip(), boxes))
+              line = fp.readline()
+              cnt += 1
+  
+      return boxes_per_img
+  
+  
+  ```
+
+- 추가로
+
+  ```
+  
+  
+  ---------------------------------------------------------------------------
+  OSError                                   Traceback (most recent call last)
+  /tmp/ipykernel_41/673062333.py in <module>
+       27         if (epoch + 1) % cfg['save_freq'] == 0:
+       28             filepath = os.path.join(weights_dir, f'weights_epoch_{(epoch + 1):03d}.h5')
+  ---> 29             model.save_weights(filepath)
+       30             if os.path.exists(filepath):
+       31                 print(f">>>>>>>>>>Save weights file at {filepath}<<<<<<<<<<")
+  
+  /opt/conda/lib/python3.9/site-packages/keras/engine/training.py in save_weights(self, filepath, overwrite, save_format, options)
+     2249         return
+     2250     if save_format == 'h5':
+  -> 2251       with h5py.File(filepath, 'w') as f:
+     2252         hdf5_format.save_weights_to_hdf5_group(f, self.layers)
+     2253     else:
+  
+  /opt/conda/lib/python3.9/site-packages/h5py/_hl/files.py in __init__(self, name, mode, driver, libver, userblock_size, swmr, rdcc_nslots, rdcc_nbytes, rdcc_w0, track_order, fs_strategy, fs_persist, fs_threshold, **kwds)
+      422             with phil:
+      423                 fapl = make_fapl(driver, libver, rdcc_nslots, rdcc_nbytes, rdcc_w0, **kwds)
+  --> 424                 fid = make_fid(name, mode, userblock_size,
+      425                                fapl, fcpl=make_fcpl(track_order=track_order, fs_strategy=fs_strategy,
+      426                                fs_persist=fs_persist, fs_threshold=fs_threshold),
+  
+  /opt/conda/lib/python3.9/site-packages/h5py/_hl/files.py in make_fid(name, mode, userblock_size, fapl, fcpl, swmr)
+      194         fid = h5f.create(name, h5f.ACC_EXCL, fapl=fapl, fcpl=fcpl)
+      195     elif mode == 'w':
+  --> 196         fid = h5f.create(name, h5f.ACC_TRUNC, fapl=fapl, fcpl=fcpl)
+      197     elif mode == 'a':
+      198         # Open in append mode (read/write).
+  
+  h5py/_objects.pyx in h5py._objects.with_phil.wrapper()
+  
+  h5py/_objects.pyx in h5py._objects.with_phil.wrapper()
+  
+  h5py/h5f.pyx in h5py.h5f.create()
+  
+  OSError: Unable to create file (unable to open file: name = '/aiffel/aiffel/face_detector/checkpoints/weights_epoch_010.h5', errno = 30, error message = 'Read-only file system', flags = 13, o_flags = 242)
+  
+  
+  ```
+
+  이런 오류메시지가 발견되었는데 아마 파일 권한만 조정해주면 이후 작업이 가능한 것으로 보입니다
 
 
 ------------------------------------------------
